@@ -11,6 +11,12 @@ import { HabitList } from "@/components/HabitList";
 import { StatCard } from "@/components/StatCard";
 import { Heatmap } from "@/components/Heatmap";
 import { CommitmentCard, type Commitment } from "@/components/CommitmentCard";
+import { ProtocolRings } from "@/components/ProtocolRings";
+import {
+  adherenceByDimension,
+  loadStore,
+  todaysHabitStatus,
+} from "@/lib/protocol";
 import {
   SkeletonRing,
   SkeletonCard,
@@ -42,6 +48,15 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [commitments, setCommitments] = useState<Commitment[]>([]);
+  const [protocolSeed, setProtocolSeed] = useState<{
+    adherence: { sleep: number; training: number; nutrition: number };
+    status: { done: number; pending: number; skipped: number; total: number };
+    hasTree: boolean;
+  }>({
+    adherence: { sleep: 0, training: 0, nutrition: 0 },
+    status: { done: 0, pending: 0, skipped: 0, total: 0 },
+    hasTree: false,
+  });
 
   const fetchData = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -72,6 +87,14 @@ export default function Dashboard() {
       }
     } catch {
       /* ignore */
+    }
+    const store = loadStore();
+    if (store.tree) {
+      setProtocolSeed({
+        adherence: adherenceByDimension(store.tree),
+        status: todaysHabitStatus(store.tree),
+        hasTree: true,
+      });
     }
   }, []);
 
@@ -139,6 +162,39 @@ export default function Dashboard() {
               ))}
         </div>
       </section>
+
+      {/* Live Protocol */}
+      {protocolSeed.hasTree ? (
+        <section className="mb-10">
+          <ProtocolRings
+            adherence={protocolSeed.adherence}
+            seed={{
+              done: protocolSeed.status.done,
+              pending: protocolSeed.status.pending,
+              skipped: protocolSeed.status.skipped,
+              total: protocolSeed.status.total,
+              streak: data?.stats.streakDays ?? 0,
+              nextAction: null,
+            }}
+          />
+        </section>
+      ) : (
+        <section className="mb-10">
+          <Link
+            href="/protocol"
+            className="block rounded-xl border p-5 text-center text-sm"
+            style={{
+              background: "var(--surface)",
+              borderColor: "var(--border)",
+              color: "var(--muted)",
+              fontFamily: "Georgia, serif",
+              fontStyle: "italic",
+            }}
+          >
+            No protocol tree yet — decompose a target to begin.
+          </Link>
+        </section>
+      )}
 
       {/* Today's Habits */}
       <section className="mb-10">
