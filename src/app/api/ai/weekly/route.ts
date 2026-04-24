@@ -44,17 +44,25 @@ function weekRange(): string {
 
 function parseReport(raw: string): Omit<WeeklyReport, "week" | "generatedAt"> {
   let text = raw.trim();
-  if (text.startsWith("```")) {
-    text = text.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+  // Strip markdown fences
+  if (text.includes("```")) {
+    text = text.replace(/```(?:json)?\s*/g, "").replace(/```/g, "");
+  }
+  // Extract first JSON object even if there's preamble/thinking text
+  const jsonMatch = text.match(/\{[\s\S]*\}/);
+  if (jsonMatch) {
+    text = jsonMatch[0];
   }
   try {
     const parsed = JSON.parse(text) as Record<string, string>;
     return {
-      summary: parsed.summary || "",
-      bestDay: parsed.bestDay || "",
-      worstDay: parsed.worstDay || "",
-      pattern: parsed.pattern || "",
-      recommendation: parsed.recommendation || "",
+      // Handle both camelCase and snake_case keys Gemini may return
+      summary: parsed.summary || parsed.Summary || "",
+      bestDay: parsed.bestDay || parsed.best_day || parsed["Best Day"] || "",
+      worstDay:
+        parsed.worstDay || parsed.worst_day || parsed["Worst Day"] || "",
+      pattern: parsed.pattern || parsed.Pattern || "",
+      recommendation: parsed.recommendation || parsed.Recommendation || "",
     };
   } catch {
     return {

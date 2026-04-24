@@ -27,7 +27,10 @@ export function Nav() {
         background: "var(--background)",
       }}
     >
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-5 overflow-x-auto">
+      <div
+        className="max-w-4xl mx-auto px-4 sm:px-6 py-3 flex items-center gap-5 overflow-x-auto"
+        style={{ WebkitOverflowScrolling: "touch", scrollbarWidth: "none" }}
+      >
         {ITEMS.map((item) => {
           const active = isActive(item.href, pathname);
           return (
