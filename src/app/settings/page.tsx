@@ -166,12 +166,12 @@ export default function SettingsPage() {
       icon: <CircleCheck size={18} />,
     },
     {
-      key: "claude",
-      name: "Claude API",
+      key: "gemini",
+      name: "Gemini API",
       description: "Morning brief, coach, weekly synthesis",
       status: claude,
       note:
-        claude === "disconnected" ? "Set ANTHROPIC_API_KEY env var" : undefined,
+        claude === "disconnected" ? "Set GEMINI_API_KEY env var" : undefined,
       icon: <Sparkles size={18} />,
     },
     {

@@ -49,7 +49,7 @@ export async function GET(request: Request) {
         brief: null,
         generatedAt: null,
         connected: false,
-        error: "Connect Claude API to enable AI features",
+        error: "Connect Gemini API to enable AI features",
       },
       { status: 200 },
     );
@@ -116,7 +116,7 @@ ${overdueList || "none"}
 Write the morning brief.`;
 
     const brief = await askClaude(BRIEF_SYSTEM, userPrompt, {
-      model: "claude-opus-4-6",
+      model: "gemini-2.5-pro",
       maxTokens: 400,
     });
 

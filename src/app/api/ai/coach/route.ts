@@ -1,4 +1,4 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 import { hasClaudeKey } from "@/lib/claude";
 import { getTodaysHabits, getCompletionRate } from "@/lib/todoist";
 import { computeAllScores } from "@/lib/scores";
@@ -14,10 +14,7 @@ interface ChatMessage {
 
 export async function POST(request: Request) {
   if (!hasClaudeKey()) {
-    return Response.json(
-      { error: "ANTHROPIC_API_KEY not set" },
-      { status: 500 },
-    );
+    return Response.json({ error: "GEMINI_API_KEY not set" }, { status: 500 });
   }
 
   let body: { messages?: ChatMessage[] };
@@ -67,23 +64,21 @@ Today's completion rate: ${completion.rate}%
   const system = `${SYSTEM_PROMPT}\n\n${context}`;
 
   try {
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-    const response = await client.messages.create({
-      model: "claude-opus-4-6",
-      max_tokens: 1024,
-      system: [
-        {
-          type: "text",
-          text: system,
-          cache_control: { type: "ephemeral" },
-        },
-      ],
-      messages: messages.map((m) => ({ role: m.role, content: m.content })),
+    const client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+    const contents = messages.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+    const response = await client.models.generateContent({
+      model: "gemini-2.5-pro",
+      contents,
+      config: {
+        systemInstruction: system,
+        maxOutputTokens: 1024,
+      },
     });
 
-    const textBlock = response.content.find((b) => b.type === "text");
-    const content =
-      textBlock && textBlock.type === "text" ? textBlock.text : "";
+    const content = response.text ?? "";
     return Response.json({ content });
   } catch (err) {
     const message = err instanceof Error ? err.message : "unknown";

@@ -1,17 +1,17 @@
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI } from "@google/genai";
 
-let _client: Anthropic | null = null;
+let _client: GoogleGenAI | null = null;
 
-function getClient(): Anthropic | null {
-  if (!process.env.ANTHROPIC_API_KEY) return null;
+function getClient(): GoogleGenAI | null {
+  if (!process.env.GEMINI_API_KEY) return null;
   if (!_client) {
-    _client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+    _client = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
   }
   return _client;
 }
 
 export function hasClaudeKey(): boolean {
-  return !!process.env.ANTHROPIC_API_KEY;
+  return !!process.env.GEMINI_API_KEY;
 }
 
 interface AskClaudeOptions {
@@ -19,33 +19,29 @@ interface AskClaudeOptions {
   maxTokens?: number;
 }
 
+const DEFAULT_MODEL = "gemini-2.5-pro";
+
 export async function askClaude(
   system: string,
   user: string,
   options: AskClaudeOptions = {},
 ): Promise<string> {
   const client = getClient();
-  if (!client) throw new Error("ANTHROPIC_API_KEY not set");
+  if (!client) throw new Error("GEMINI_API_KEY not set");
 
-  const model = options.model ?? "claude-opus-4-6";
+  const model = options.model ?? DEFAULT_MODEL;
   const maxTokens = options.maxTokens ?? 1024;
 
-  const response = await client.messages.create({
+  const response = await client.models.generateContent({
     model,
-    max_tokens: maxTokens,
-    system: [
-      {
-        type: "text",
-        text: system,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    messages: [{ role: "user", content: user }],
+    contents: [{ role: "user", parts: [{ text: user }] }],
+    config: {
+      systemInstruction: system,
+      maxOutputTokens: maxTokens,
+    },
   });
 
-  const textBlock = response.content.find((b) => b.type === "text");
-  if (!textBlock || textBlock.type !== "text") return "";
-  return textBlock.text;
+  return response.text ?? "";
 }
 
 export async function streamClaude(
@@ -54,22 +50,23 @@ export async function streamClaude(
   options: AskClaudeOptions = {},
 ): Promise<ReadableStream<Uint8Array>> {
   const client = getClient();
-  if (!client) throw new Error("ANTHROPIC_API_KEY not set");
+  if (!client) throw new Error("GEMINI_API_KEY not set");
 
-  const model = options.model ?? "claude-opus-4-6";
+  const model = options.model ?? DEFAULT_MODEL;
   const maxTokens = options.maxTokens ?? 2048;
 
-  const stream = client.messages.stream({
+  const contents = messages.map((m) => ({
+    role: m.role === "assistant" ? "model" : "user",
+    parts: [{ text: m.content }],
+  }));
+
+  const streamPromise = client.models.generateContentStream({
     model,
-    max_tokens: maxTokens,
-    system: [
-      {
-        type: "text",
-        text: system,
-        cache_control: { type: "ephemeral" },
-      },
-    ],
-    messages,
+    contents,
+    config: {
+      systemInstruction: system,
+      maxOutputTokens: maxTokens,
+    },
   });
 
   const encoder = new TextEncoder();
@@ -77,15 +74,12 @@ export async function streamClaude(
   return new ReadableStream({
     async start(controller) {
       try {
-        for await (const event of stream) {
-          if (
-            event.type === "content_block_delta" &&
-            event.delta.type === "text_delta"
-          ) {
+        const stream = await streamPromise;
+        for await (const chunk of stream) {
+          const text = chunk.text;
+          if (text) {
             controller.enqueue(
-              encoder.encode(
-                `data: ${JSON.stringify({ delta: event.delta.text })}\n\n`,
-              ),
+              encoder.encode(`data: ${JSON.stringify({ delta: text })}\n\n`),
             );
           }
         }

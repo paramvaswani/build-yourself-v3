@@ -69,10 +69,7 @@ function parseReport(raw: string): Omit<WeeklyReport, "week" | "generatedAt"> {
 
 export async function GET(request: Request) {
   if (!hasClaudeKey()) {
-    return Response.json(
-      { error: "ANTHROPIC_API_KEY not set" },
-      { status: 200 },
-    );
+    return Response.json({ error: "GEMINI_API_KEY not set" }, { status: 200 });
   }
 
   const url = new URL(request.url);
@@ -137,7 +134,7 @@ ${recentTitles || "(none)"}
 Produce the weekly synthesis as JSON.`;
 
     const raw = await askClaude(WEEKLY_SYSTEM, userPrompt, {
-      model: "claude-opus-4-6",
+      model: "gemini-2.5-pro",
       maxTokens: 800,
     });
     const parsed = parseReport(raw);
